@@ -30,17 +30,17 @@
 
 -- 13. VALIDATION QUERIES
 
-CREATE DATABASE inventory_management;
+CREATE DATABASE IF NOT EXISTS inventory_management;
 USE inventory_management;
 SHOW databases;
 
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
     category_id INT PRIMARY KEY,
     category_name VARCHAR(100) NOT NULL,
     description TEXT
 ) ENGINE=InnoDB;
 
-CREATE TABLE suppliers (
+CREATE TABLE IF NOT EXISTS suppliers (
     supplier_id INT PRIMARY KEY,
     supplier_name VARCHAR(150) NOT NULL,
     email VARCHAR(150),
@@ -49,14 +49,14 @@ CREATE TABLE suppliers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
-CREATE TABLE warehouses (
+CREATE TABLE IF NOT EXISTS warehouses (
     warehouse_id INT PRIMARY KEY,
     warehouse_name VARCHAR(150) NOT NULL,
     location VARCHAR(255),
     contact_number VARCHAR(20)
 ) ENGINE=InnoDB;
 
-CREATE TABLE customers (
+CREATE TABLE IF NOT EXISTS customers (
     customer_id INT PRIMARY KEY,
     customer_name VARCHAR(150) NOT NULL,
     email VARCHAR(150),
@@ -65,7 +65,7 @@ CREATE TABLE customers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
-CREATE TABLE employees (
+CREATE TABLE IF NOT EXISTS employees (
     employee_id INT PRIMARY KEY,
     employee_name VARCHAR(150) NOT NULL,
     email VARCHAR(150),
@@ -73,7 +73,7 @@ CREATE TABLE employees (
     hire_date DATE
 ) ENGINE=InnoDB;
 
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
     product_id INT PRIMARY KEY,
     product_name VARCHAR(150) NOT NULL,
     category_id INT,
@@ -88,7 +88,7 @@ CREATE TABLE products (
         REFERENCES suppliers(supplier_id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE warehouse_inventory (
+CREATE TABLE IF NOT EXISTS warehouse_inventory (
     inventory_id INT PRIMARY KEY,
     warehouse_id INT NOT NULL,
     product_id INT NOT NULL,
@@ -102,7 +102,7 @@ CREATE TABLE warehouse_inventory (
         REFERENCES products(product_id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE purchase_orders (
+CREATE TABLE IF NOT EXISTS purchase_orders (
     purchase_order_id INT PRIMARY KEY,
     supplier_id INT NOT NULL,
     warehouse_id INT NOT NULL,
@@ -115,7 +115,7 @@ CREATE TABLE purchase_orders (
         REFERENCES warehouses(warehouse_id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE purchase_order_items (
+CREATE TABLE IF NOT EXISTS purchase_order_items (
     purchase_item_id INT PRIMARY KEY,
     purchase_order_id INT NOT NULL,
     product_id INT NOT NULL,
@@ -128,7 +128,7 @@ CREATE TABLE purchase_order_items (
         REFERENCES products(product_id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE sales_orders (
+CREATE TABLE IF NOT EXISTS sales_orders (
     sales_order_id INT PRIMARY KEY,
     customer_id INT NOT NULL,
     warehouse_id INT NOT NULL,
@@ -140,7 +140,7 @@ CREATE TABLE sales_orders (
         REFERENCES warehouses(warehouse_id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE sales_order_items (
+CREATE TABLE IF NOT EXISTS sales_order_items (
     sales_item_id INT PRIMARY KEY,
     sales_order_id INT NOT NULL,
     product_id INT NOT NULL,
@@ -153,7 +153,7 @@ CREATE TABLE sales_order_items (
         REFERENCES products(product_id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     payment_id INT PRIMARY KEY,
     sales_order_id INT NOT NULL,
     payment_date DATE,
@@ -164,7 +164,7 @@ CREATE TABLE payments (
         REFERENCES sales_orders(sales_order_id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE stock_movements (
+CREATE TABLE IF NOT EXISTS stock_movements (
     movement_id INT PRIMARY KEY,
     product_id INT NOT NULL,
     warehouse_id INT NOT NULL,
@@ -213,6 +213,63 @@ INNER JOIN categories c
 INNER JOIN suppliers s
     ON p.supplier_id = s.supplier_id
 ORDER BY p.product_id;
+
+--Subquery: products priced above the overall average
+SELECT product_id, product_name, unit_price
+FROM products
+WHERE unit_price > (SELECT AVG(unit_price) FROM products)
+ORDER BY unit_price DESC;
+
+--CTE: total completed sales value by product
+WITH completed_product_sales AS (
+    SELECT
+        soi.product_id,
+        SUM(soi.quantity) AS units_sold,
+        SUM(soi.quantity * soi.unit_price) AS sales_value
+    FROM sales_order_items soi
+    INNER JOIN sales_orders so
+        ON soi.sales_order_id = so.sales_order_id
+    WHERE so.order_status = 'Completed'
+    GROUP BY soi.product_id
+)
+SELECT
+    p.product_id,
+    p.product_name,
+    COALESCE(cps.units_sold, 0) AS units_sold,
+    ROUND(COALESCE(cps.sales_value, 0), 2) AS sales_value
+FROM products p
+LEFT JOIN completed_product_sales cps
+    ON p.product_id = cps.product_id
+ORDER BY sales_value DESC;
+
+--Window function: rank products by total completed sales value
+WITH product_sales AS (
+    SELECT
+        p.product_id,
+        p.product_name,
+        COALESCE(SUM(soi.quantity * soi.unit_price), 0) AS sales_value
+    FROM products p
+    LEFT JOIN sales_order_items soi
+        ON p.product_id = soi.product_id
+    LEFT JOIN sales_orders so
+        ON soi.sales_order_id = so.sales_order_id
+       AND so.order_status = 'Completed'
+    GROUP BY p.product_id, p.product_name
+)
+SELECT
+    product_id,
+    product_name,
+    ROUND(sales_value, 2) AS sales_value,
+    DENSE_RANK() OVER (ORDER BY sales_value DESC) AS sales_rank
+FROM product_sales
+ORDER BY sales_rank, product_name;
+
+--CRUD practice templates (uncomment and adapt IDs before use)
+-- INSERT INTO categories (category_id, category_name, description)
+-- VALUES (999, 'Sample Category', 'Temporary practice record');
+-- UPDATE categories SET category_name = 'Updated Sample'
+-- WHERE category_id = 999;
+-- DELETE FROM categories WHERE category_id = 999;
 
 --Inventory report by warehouse
 SELECT
@@ -454,22 +511,6 @@ LEFT JOIN sales_summary ss
 ORDER BY sales_value DESC;
 
 --Create a product details view
-CREATE OR REPLACE VIEW vw_product_details AS
-SELECT
-    p.product_id,
-    p.product_name,
-    p.sku,
-    c.category_name,
-    s.supplier_name,
-    p.unit_price,
-    p.reorder_level,
-    p.created_at
-FROM products p
-LEFT JOIN categories c
-    ON p.category_id = c.category_id
-LEFT JOIN suppliers s
-    ON p.supplier_id = s.supplier_id;
-
 SELECT *
 FROM vw_product_details;
 SELECT
@@ -563,6 +604,8 @@ ORDER BY line_total DESC
 LIMIT 20;
 
 --Create your first stored procedure
+DROP PROCEDURE IF EXISTS GetAllProducts;
+
 DELIMITER //
 
 CREATE PROCEDURE GetAllProducts()
@@ -576,6 +619,8 @@ DELIMITER ;
 CALL GetAllProducts();
 
 --Stored procedure with a parameter
+DROP PROCEDURE IF EXISTS GetProductsByCategory;
+
 DELIMITER //
 
 CREATE PROCEDURE GetProductsByCategory(
@@ -838,3 +883,36 @@ FROM sales_orders
 FORCE INDEX (idx_sales_orders_order_date)
 WHERE order_date >= '2026-01-01'
   AND order_date < '2027-01-01';
+
+-- Final validation queries
+-- Confirm row counts across all 13 tables
+SELECT 'categories' AS table_name, COUNT(*) AS total FROM categories
+UNION ALL SELECT 'suppliers', COUNT(*) FROM suppliers
+UNION ALL SELECT 'products', COUNT(*) FROM products
+UNION ALL SELECT 'warehouses', COUNT(*) FROM warehouses
+UNION ALL SELECT 'warehouse_inventory', COUNT(*) FROM warehouse_inventory
+UNION ALL SELECT 'purchase_orders', COUNT(*) FROM purchase_orders
+UNION ALL SELECT 'purchase_order_items', COUNT(*) FROM purchase_order_items
+UNION ALL SELECT 'customers', COUNT(*) FROM customers
+UNION ALL SELECT 'sales_orders', COUNT(*) FROM sales_orders
+UNION ALL SELECT 'sales_order_items', COUNT(*) FROM sales_order_items
+UNION ALL SELECT 'payments', COUNT(*) FROM payments
+UNION ALL SELECT 'employees', COUNT(*) FROM employees
+UNION ALL SELECT 'stock_movements', COUNT(*) FROM stock_movements;
+
+-- Check for negative inventory
+SELECT inventory_id, warehouse_id, product_id, quantity_available
+FROM warehouse_inventory
+WHERE quantity_available < 0;
+
+-- Check for duplicate warehouse/product pairs (should return no rows)
+SELECT warehouse_id, product_id, COUNT(*) AS duplicate_count
+FROM warehouse_inventory
+GROUP BY warehouse_id, product_id
+HAVING COUNT(*) > 1;
+
+-- Check for orphaned product category references (should return no rows)
+SELECT p.product_id, p.category_id
+FROM products p
+LEFT JOIN categories c ON p.category_id = c.category_id
+WHERE p.category_id IS NOT NULL AND c.category_id IS NULL;
