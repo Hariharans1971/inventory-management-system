@@ -5,30 +5,43 @@
 -- ==========================================
 
 -- 1. DATABASE CREATION
+-- Creates/selects the database.
 
 -- 2. TABLE CREATION
+-- Defines 13 related tables, their primary keys, and foreign-key links.
 
 -- 3. BASIC SQL QUERIES
+-- Practice SELECT, JOIN, subquery, CTE, window function, and CRUD concepts.
 
 -- 4. JOINS
+-- JOIN combines related records using matching key columns.
 
 -- 5. SUBQUERIES AND CTEs
+-- Subqueries nest queries; CTEs name temporary results for one statement.
 
 -- 6. WINDOW FUNCTIONS
+-- Window functions calculate across rows without collapsing each group.
 
 -- 7. BUSINESS REPORTS
+-- Summaries for stock, sales, customers, payments, suppliers, and purchases.
 
 -- 8. VIEWS
+-- Views save reusable SELECT statements.
 
 -- 9. STORED PROCEDURES
+-- Procedures store reusable SQL logic and run with CALL.
 
 -- 10. TRIGGERS
+-- Triggers automatically run on specified table changes.
 
 -- 11. TRANSACTIONS
+-- COMMIT saves changes; ROLLBACK cancels uncommitted changes.
 
 -- 12. INDEXES AND QUERY OPTIMIZATION
+-- Indexes may speed lookups; EXPLAIN shows MySQL's query plan.
 
 -- 13. VALIDATION QUERIES
+-- Final checks look for unexpected counts and data-integrity issues.
 
 CREATE DATABASE IF NOT EXISTS inventory_management;
 USE inventory_management;
@@ -183,6 +196,30 @@ CREATE TABLE IF NOT EXISTS stock_movements (
 
 SHOW TABLES;
 
+-- Create the product view before any query or procedure uses it.
+CREATE OR REPLACE VIEW vw_product_details AS
+SELECT
+    p.product_id,
+    p.product_name,
+    p.sku,
+    p.category_id,
+    c.category_name,
+    s.supplier_name,
+    p.unit_price,
+    p.reorder_level,
+    p.created_at
+FROM products p
+LEFT JOIN categories c
+    ON p.category_id = c.category_id
+LEFT JOIN suppliers s
+    ON p.supplier_id = s.supplier_id;
+
+-- PAUSE: import CSVs in this foreign-key order before reports:
+-- categories, suppliers, warehouses, customers, employees, products,
+-- warehouse_inventory, purchase_orders, purchase_order_items, sales_orders,
+-- sales_order_items, payments, stock_movements.
+
+
 --Check all 13 table counts
 SELECT 'categories' AS table_name, COUNT(*) AS total FROM categories
 UNION ALL SELECT 'suppliers', COUNT(*) FROM suppliers
@@ -198,6 +235,8 @@ UNION ALL SELECT 'payments', COUNT(*) FROM payments
 UNION ALL SELECT 'employees', COUNT(*) FROM employees
 UNION ALL SELECT 'stock_movements', COUNT(*) FROM stock_movements;
 
+--View complete product details
+-- INNER JOIN returns rows with matching category and supplier.
 --View complete product details
 SELECT
     p.product_id,
@@ -215,11 +254,15 @@ INNER JOIN suppliers s
 ORDER BY p.product_id;
 
 --Subquery: products priced above the overall average
+-- Compares each product price with the overall average.
+--Subquery: products priced above the overall average
 SELECT product_id, product_name, unit_price
 FROM products
 WHERE unit_price > (SELECT AVG(unit_price) FROM products)
 ORDER BY unit_price DESC;
 
+--CTE: total completed sales value by product
+-- CTE names completed-sales totals for the main query.
 --CTE: total completed sales value by product
 WITH completed_product_sales AS (
     SELECT
@@ -242,6 +285,8 @@ LEFT JOIN completed_product_sales cps
     ON p.product_id = cps.product_id
 ORDER BY sales_value DESC;
 
+--Window function: rank products by total completed sales value
+-- DENSE_RANK ranks sales values while retaining each product row.
 --Window function: rank products by total completed sales value
 WITH product_sales AS (
     SELECT
@@ -271,6 +316,8 @@ ORDER BY sales_rank, product_name;
 -- DELETE FROM categories WHERE category_id = 999;
 
 --Inventory report by warehouse
+-- Lists items at or below their reorder threshold.
+--Inventory report by warehouse
 SELECT
     w.warehouse_name,
     p.product_id,
@@ -289,6 +336,8 @@ INNER JOIN products p
 WHERE wi.quantity_available <= p.reorder_level
 ORDER BY wi.quantity_available ASC;
 
+--Total inventory value
+-- Estimates stock value as quantity multiplied by unit price.
 --Total inventory value
 --inventory value = quantity available * unit price
 SELECT
@@ -318,6 +367,8 @@ FROM warehouse_inventory wi
 INNER JOIN products p
     ON wi.product_id = p.product_id;
     
+--Sales performance report
+-- Calculates units and order value for each sales order.
 --Sales performance report
 SELECT
     so.sales_order_id,
@@ -360,6 +411,7 @@ GROUP BY so.order_status
 ORDER BY total_order_value DESC;
 
 --Monthly completed sales
+-- Groups completed sales by month.
 SELECT
     DATE_FORMAT(so.order_date, '%Y-%m') AS sales_month,
     COUNT(DISTINCT so.sales_order_id) AS completed_orders,
@@ -396,6 +448,7 @@ ORDER BY completed_sales_value DESC
 LIMIT 10;
 
 --Payment analysis
+-- Compares payment count, total, and average by method and status.
 SELECT
     payment_method,
     payment_status,
@@ -438,6 +491,7 @@ FROM payments
 WHERE payment_status = 'Completed';
 
 --Supplier performance report
+-- Summarizes purchase volume and value by supplier.
 SELECT
     s.supplier_id,
     s.supplier_name,
@@ -471,6 +525,7 @@ GROUP BY po.status
 ORDER BY total_purchase_value DESC;
 
 --Product-wise purchase and sales comparison
+-- CTEs compare received purchases with completed sales by product.
 WITH purchase_summary AS (
     SELECT
         poi.product_id,
@@ -522,6 +577,7 @@ WHERE unit_price > 1000
 ORDER BY unit_price DESC;
 
 --Create an inventory summary view
+-- View labels stock Out of Stock, Low Stock, or In Stock.
 CREATE OR REPLACE VIEW vw_inventory_summary AS
 SELECT
     w.warehouse_id,
@@ -561,6 +617,7 @@ WHERE stock_status IN ('Low Stock', 'Out of Stock')
 ORDER BY quantity_available ASC;
 
 --Create a sales details view
+-- View combines order, customer, warehouse, and product-line details.
 CREATE OR REPLACE VIEW vw_sales_details AS
 SELECT
     so.sales_order_id,
@@ -603,6 +660,7 @@ ORDER BY line_total DESC
 LIMIT 20;
 
 --Create your first stored procedure
+-- Creates and calls a procedure returning all products.
 DROP PROCEDURE IF EXISTS GetAllProducts;
 
 DELIMITER //
@@ -618,6 +676,7 @@ DELIMITER ;
 CALL GetAllProducts();
 
 --Stored procedure with a parameter
+-- Input parameter filters products by category ID.
 DROP PROCEDURE IF EXISTS GetProductsByCategory;
 
 DELIMITER //
@@ -642,22 +701,7 @@ DELIMITER ;
 
 CALL GetProductsByCategory(1);
 
-CREATE OR REPLACE VIEW vw_product_details AS
-SELECT
-    p.product_id,
-    p.product_name,
-    p.sku,
-    p.category_id,
-    c.category_name,
-    s.supplier_name,
-    p.unit_price,
-    p.reorder_level,
-    p.created_at
-FROM products p
-LEFT JOIN categories c
-    ON p.category_id = c.category_id
-LEFT JOIN suppliers s
-    ON p.supplier_id = s.supplier_id;
+
 
 SELECT
     category_id,
@@ -666,6 +710,7 @@ FROM categories
 ORDER BY category_id;
 
 --GetCustomerOrders
+-- Input customer ID returns order totals.
 DROP PROCEDURE IF EXISTS GetCustomerOrders;
 
 DELIMITER //
@@ -703,6 +748,7 @@ DELIMITER ;
 CALL GetCustomerOrders(13);
 
 --GetWarehouseStock
+-- Input warehouse ID returns stock details and status.
 DROP PROCEDURE IF EXISTS GetWarehouseStock;
 
 DELIMITER //
@@ -743,6 +789,7 @@ CALL GetWarehouseStock(3);
 
 --triggers
 --Prevent negative stock on INSERT
+-- BEFORE INSERT rejects negative starting stock.
 DROP TRIGGER IF EXISTS trg_check_stock_insert;
 
 DELIMITER //
@@ -760,6 +807,7 @@ END //
 DELIMITER ;
 
 --Prevent negative stock on UPDATE
+-- BEFORE UPDATE rejects changes that make stock negative.
 DROP TRIGGER IF EXISTS trg_check_stock_update;
 
 DELIMITER //
@@ -777,17 +825,18 @@ END //
 DELIMITER ;
 
 --Test the triggers
-UPDATE warehouse_inventory
-SET quantity_available = -10
-WHERE inventory_id = 1;
-INSERT INTO warehouse_inventory
-    (warehouse_id, product_id, quantity_available)
-VALUES
-    (1, 1, -10);
+-- UPDATE warehouse_inventory
+-- SET quantity_available = -10
+-- WHERE inventory_id = 1;
+-- INSERT INTO warehouse_inventory
+--     (warehouse_id, product_id, quantity_available)
+-- VALUES
+--     (1, 1, -10);
 SHOW TRIGGERS
 FROM inventory_management;
 
 --Practise START TRANSACTION and ROLLBACK
+-- Temporary stock update is undone; original quantity should return.
 SELECT
     inventory_id,
     product_id,
@@ -838,12 +887,14 @@ DROP TABLE transaction_demo;
 
 --SQL indexes
 --Explore existing indexes
+-- SHOW INDEX lists indexes defined on these tables.
 SHOW INDEX FROM products;
 SHOW INDEX FROM sales_orders;
 SHOW INDEX FROM sales_order_items;
 SHOW INDEX FROM stock_movements;
 
 --Understand how indexes help
+-- EXPLAIN displays the execution plan MySQL chooses.
 SELECT *
 FROM sales_orders
 WHERE customer_id = 13;
@@ -884,6 +935,7 @@ WHERE order_date >= '2026-01-01'
   AND order_date < '2027-01-01';
 
 -- Final validation queries
+-- Integrity checks should return no rows when data is consistent.
 -- Confirm row counts across all 13 tables
 SELECT 'categories' AS table_name, COUNT(*) AS total FROM categories
 UNION ALL SELECT 'suppliers', COUNT(*) FROM suppliers
