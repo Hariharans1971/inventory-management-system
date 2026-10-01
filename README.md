@@ -45,7 +45,7 @@ The database is named `inventory_management` and contains **13 relational tables
 | `employees` | Employee details and roles |
 | `stock_movements` | Stock movement type, quantity, date, employee, and reference information |
 
-The ER diagram is included as `inventory_management.png`.
+The ER diagram is included as `er diagram inventory.png`.
 
 ## Dataset
 
@@ -77,6 +77,7 @@ The SQL script includes work covering:
 - Database and table creation
 - Primary keys, foreign keys, unique constraints, and InnoDB tables
 - SELECT, filtering, sorting, and limiting results
+- Basic CRUD practice templates (commented examples to adapt before execution)
 - Aggregate functions, GROUP BY, and HAVING
 - INNER JOIN and LEFT JOIN
 - CASE expressions
@@ -118,8 +119,8 @@ A simple repository structure is:
 
 ```text
 inventory-management-system/
-├── inventory_management.sql
-├── inventory_management.png
+├── inventory_management project.sql
+├── er diagram inventory.png
 ├── README.md
 └── Datasets/
     ├── categories.csv
@@ -155,7 +156,7 @@ USE inventory_management;
 
 ### 2. Create the tables
 
-Open `inventory_management.sql` in MySQL Workbench and run the database/table creation section first.
+Open `inventory_management project.sql` in MySQL Workbench. Run the database and table-creation section first against a new/empty project database. The later queries and database objects expect the CSV data to be imported.
 
 ### 3. Import the CSV datasets
 
