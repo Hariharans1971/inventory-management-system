@@ -247,13 +247,12 @@ WITH product_sales AS (
     SELECT
         p.product_id,
         p.product_name,
-        COALESCE(SUM(soi.quantity * soi.unit_price), 0) AS sales_value
+        COALESCE(SUM(CASE WHEN so.order_status = 'Completed' THEN soi.quantity * soi.unit_price ELSE 0 END), 0) AS sales_value
     FROM products p
     LEFT JOIN sales_order_items soi
         ON p.product_id = soi.product_id
     LEFT JOIN sales_orders so
         ON soi.sales_order_id = so.sales_order_id
-       AND so.order_status = 'Completed'
     GROUP BY p.product_id, p.product_name
 )
 SELECT
