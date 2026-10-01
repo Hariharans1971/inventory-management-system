@@ -119,7 +119,13 @@ A simple repository structure is:
 
 ```text
 inventory-management-system/
-├── inventory_management project.sql
+├── inventory_management project.sql  (complete combined script)
+├── sql/
+│   ├── 01_database_and_tables.sql
+│   ├── 02_basic_queries_and_reports.sql
+│   ├── 03_views_and_procedures.sql
+│   ├── 04_triggers_and_transactions.sql
+│   └── 05_indexes_and_validation.sql
 ├── er diagram inventory.png
 ├── README.md
 └── Datasets/
@@ -156,7 +162,7 @@ USE inventory_management;
 
 ### 2. Create the tables
 
-Open `inventory_management project.sql` in MySQL Workbench. Run the database and table-creation section first against a new/empty project database. The later queries and database objects expect the CSV data to be imported.
+You can use the complete combined file `inventory_management project.sql`, or run the split files in the `sql/` folder. Start with `sql/01_database_and_tables.sql` in MySQL Workbench against a new/empty project database.
 
 ### 3. Import the CSV datasets
 
@@ -182,7 +188,14 @@ Importing parent tables before dependent tables helps satisfy foreign-key relati
 
 ### 4. Run the SQL reports and objects
 
-After importing the data, execute the remaining sections of `inventory_management.sql` to run reports and create the views, stored procedures, triggers, transactions, and indexes used in the project.
+After importing the CSV data, run the split files in this order:
+
+1. `sql/02_basic_queries_and_reports.sql`
+2. `sql/03_views_and_procedures.sql`
+3. `sql/04_triggers_and_transactions.sql`
+4. `sql/05_indexes_and_validation.sql`
+
+Alternatively, use the complete combined script and follow its comments. The split files are provided for easier learning and section-by-section execution.
 
 ## Example Reports
 
