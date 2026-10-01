@@ -197,6 +197,16 @@ After importing the CSV data, run the split files in this order:
 
 Alternatively, use the complete combined script and follow its comments. The split files are provided for easier learning and section-by-section execution.
 
+## Documentation
+
+Project documentation and submission resources are available in the `docs/` folder:
+
+- `docs/PROJECT_DOCUMENTATION.md` — project report, objectives, design, implementation, limitations, and future scope.
+- `docs/DATA_DICTIONARY.md` — tables, columns, data types, keys, and constraints.
+- `docs/TEST_CASES.md` — suggested test cases and expected results.
+- `docs/VIVA_QUESTIONS.md` — project viva and technical questions with concise answers.
+- `docs/PRESENTATION_OUTLINE.md` — suggested presentation slides and demo checklist.
+
 ## Example Reports
 
 The project includes SQL reports for:
